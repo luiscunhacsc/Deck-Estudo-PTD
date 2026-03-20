@@ -1,0 +1,1035 @@
+﻿<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deck de Estudo Interativo</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --primary-light: rgba(74, 144, 226, 0.15);
+            --background: #F4F7F6;
+            --card-bg: #FFFFFF;
+            --text-main: #333333;
+            --text-light: #777777;
+            --review-color: #F39C12; 
+            --success-color: #2ECC71;
+            --layout-max: 1320px;
+            --card-content-max: 1040px;
+            --reading-width: 72ch;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            height: 100dvh;
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            padding: clamp(10px, 1.8vh, 24px);
+            overflow: hidden; 
+        }
+
+        /* Modal de Instruções Iniciais */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+            z-index: 2000; transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            background: white; padding: clamp(24px, 3vh, 40px); border-radius: 15px; max-width: 580px; width: 90%;
+            max-height: calc(100vh - 28px);
+            max-height: calc(100dvh - 28px);
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .modal-content h2 { color: var(--primary); margin-top: 0; font-size: 1.8rem; text-align: center; }
+        .modal-content p { font-size: 1.1rem; line-height: 1.6; color: #444; margin-bottom: 20px; }
+        .instruction-list { list-style: none; padding: 0; margin-bottom: 30px; }
+        .instruction-list li { margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;}
+        .instruction-list kbd {
+            background-color: #eee; border-radius: 5px; border: 1px solid #b4b4b4; box-shadow: 0 2px 2px rgba(0,0,0,.15);
+            color: #333; font-size: 1rem; font-weight: 700; padding: 4px 10px; white-space: nowrap;
+        }
+        .start-btn {
+            background: var(--primary); color: white; border: none; padding: 15px 20px;
+            font-size: 1.2rem; border-radius: 10px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.2s;
+        }
+        .start-btn:hover { background: #357ABD; }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .modal-actions .start-btn {
+            flex: 1;
+            width: auto;
+        }
+        .secondary-btn {
+            flex: 1;
+            border: 2px solid #D0D7E2;
+            background: white;
+            color: #4B5D73;
+            padding: 15px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .secondary-btn:hover {
+            border-color: #AAB6C5;
+            background: #F7F9FC;
+        }
+        .secondary-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            border-color: #D8DFE8;
+            color: #8A96A6;
+            background: #F9FBFC;
+        }
+        .resume-helper {
+            margin: 14px 0 0;
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+        .resume-chip {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: bold;
+            margin-bottom: 14px;
+            font-size: 0.92rem;
+        }
+
+        /* Estrutura Principal */
+        #deck-ui {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: min(100%, var(--layout-max));
+            height: 100%;
+            min-height: 0;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: clamp(8px, 1.5vh, 16px);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            position: relative;
+            padding: 0 clamp(0px, 1vw, 10px);
+        }
+        h1 { color: var(--primary); margin: 0 0 4px; font-size: clamp(1.35rem, 0.7vw + 1.1rem, 2.2rem); transition: color 0.3s; line-height: 1.2;}
+        .subtitle { color: var(--text-light); font-size: clamp(0.9rem, 0.25vw + 0.85rem, 1.1rem); margin-top: 0; margin-bottom: 6px; line-height: 1.35;}
+
+        /* Botões de Topo */
+        .top-actions {
+            position: absolute; top: 0; right: 0; display: flex; gap: 10px;
+        }
+        .top-btn {
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            padding: 9px 14px;
+            font-size: 0.95rem;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .exit-btn {
+            background: #E74C3C; color: white;
+        }
+        .exit-btn:hover { background: #C0392B; }
+        .fullscreen-btn {
+            background: white;
+            color: #35598E;
+            border: 2px solid #D3DFEF;
+        }
+        .fullscreen-btn:hover {
+            border-color: #AFC5E3;
+            background: #F6FAFF;
+        }
+        .fullscreen-btn.active {
+            background: #35598E;
+            color: white;
+            border-color: #35598E;
+        }
+
+        /* Botão Permanente de Acesso à Revisão */
+        .persistent-review-btn {
+            background-color: white; color: var(--review-color); border: 2px solid var(--review-color);
+            padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 0.95rem;
+            transition: all 0.2s; display: none; margin-top: 5px;
+        }
+        .persistent-review-btn:hover { background-color: var(--review-color); color: white; }
+        .mode-review .persistent-review-btn { display: none !important; }
+
+        .container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(10px, 1.5vh, 20px);
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        /* Card Styling */
+        .card {
+            background: var(--card-bg); padding: clamp(18px, 2.2vh, 32px) clamp(20px, 2vw, 40px); border-radius: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+            display: flex; flex-direction: column; height: 100%; min-height: 0; position: relative; overflow: hidden; flex: 1 1 auto;
+        }
+        .card-content {
+            width: min(100%, var(--card-content-max));
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        /* Botão "+" / "✔" para Revisão (Canto Superior Direito) */
+        .bookmark-btn {
+            position: absolute; top: 0; right: 0; background: none; border: 2px solid #EEEEEE; color: #CCCCCC;
+            font-size: clamp(1.5rem, 0.8vw + 1rem, 2rem); cursor: pointer; border-radius: 50%; width: clamp(40px, 2.6vw, 50px); height: clamp(40px, 2.6vw, 50px);
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-weight: bold; line-height: 1; padding-bottom: 4px;
+        }
+        .bookmark-btn:hover { border-color: var(--review-color); color: var(--review-color); }
+        .bookmark-btn.active { background-color: var(--review-color); color: white; border-color: var(--review-color); }
+        
+        .mode-review .bookmark-btn { background-color: var(--success-color); border-color: var(--success-color); color: white; font-size: 1.6rem; padding-bottom: 0;}
+        .mode-review .bookmark-btn:hover { background-color: #27AE60; border-color: #27AE60; transform: scale(1.05); }
+
+        .question-section {
+            width: min(100%, var(--reading-width));
+            align-self: center;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(8px, 0.9vh, 12px);
+            position: relative;
+            border-bottom: 2px solid #EEEEEE;
+            padding-bottom: clamp(14px, 1.7vh, 22px);
+            margin-bottom: clamp(14px, 1.9vh, 24px);
+            flex-shrink: 0;
+            padding-right: 0;
+        }
+        .question-tag {
+            text-transform: uppercase;
+            font-size: clamp(0.72rem, 0.2vw + 0.67rem, 0.88rem);
+            font-weight: bold;
+            color: #4B607B;
+            letter-spacing: 1.2px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: fit-content;
+            align-self: flex-start;
+            margin: 0;
+            padding: 5px 12px;
+            border-radius: 999px;
+            background: rgba(53, 89, 142, 0.1);
+        }
+        .question {
+            font-size: clamp(1.02rem, 0.35vw + 0.95rem, 1.5rem);
+            font-weight: 600;
+            color: var(--primary);
+            margin: 0;
+            line-height: 1.35;
+            transition: color 0.3s;
+            width: 100%;
+            max-width: none;
+            padding-right: clamp(56px, 4vw, 74px);
+            text-wrap: balance;
+        }
+
+        .answer-section {
+            width: min(100%, var(--reading-width));
+            align-self: center;
+            font-size: clamp(0.98rem, 0.26vw + 0.9rem, 1.18rem);
+            line-height: 1.62;
+            color: #444;
+            flex-grow: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
+            overscroll-behavior: contain;
+            scrollbar-gutter: stable;
+            text-wrap: pretty;
+        }
+
+        .answer-section::-webkit-scrollbar { width: 6px; }
+        .answer-section::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px;}
+        .answer-section::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px;}
+        .answer-section::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+        .answer-section strong {
+            color: #2C3E50; background-color: var(--primary-light); padding: 2px 6px; border-radius: 4px; font-weight: 700;
+        }
+
+        /* Navigation Controls */
+        .controls {
+            display: flex; justify-content: space-between; align-items: center; background: var(--card-bg);
+            padding: clamp(10px, 1.3vh, 15px) clamp(12px, 1.9vw, 30px); border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); flex-shrink: 0;
+            gap: clamp(8px, 1vw, 16px);
+            width: min(100%, 1120px);
+            margin: 0 auto;
+        }
+
+        .progress { font-size: clamp(0.95rem, 0.2vw + 0.9rem, 1.15rem); font-weight: bold; color: var(--text-main); background: #F0F4F8; padding: 8px 15px; border-radius: 20px; min-width: 96px; text-align: center; white-space: nowrap; }
+
+        .nav-btn {
+            background-color: var(--primary); color: white; border: none; padding: 12px 25px;
+            font-size: clamp(0.93rem, 0.15vw + 0.9rem, 1.05rem); border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; width: clamp(120px, 11vw, 170px);
+        }
+
+        .nav-btn:hover:not(:disabled) { background-color: #357ABD; transform: translateY(-2px); }
+        .nav-btn:active:not(:disabled) { transform: translateY(0); }
+        .nav-btn:disabled { background-color: #BDC3C7; cursor: not-allowed; opacity: 0.7; }
+
+        /* Review Mode UI */
+        .mode-review h1 { color: var(--review-color); }
+        .mode-review .question { color: var(--review-color); }
+        .mode-review .question-tag { color: #9A5F00; background: rgba(243, 156, 18, 0.17); }
+        .mode-review .nav-btn { background-color: var(--review-color); }
+        .mode-review .nav-btn:hover:not(:disabled) { background-color: #D68910; }
+        .mode-review strong { background-color: rgba(243, 156, 18, 0.15); }
+
+        .review-banner {
+            display: flex; justify-content: space-between; align-items: center; background-color: var(--review-color);
+            color: white; padding: 10px 20px; border-radius: 10px; margin-bottom: 0; font-weight: bold; display: none; gap: 10px; flex-wrap: wrap;
+        }
+        .review-banner button {
+            background: white; color: var(--review-color); border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;
+        }
+
+        /* Toast Notification */
+        #toast {
+            position: fixed; top: 20px; right: 20px; background: var(--text-main); color: white; padding: 12px 20px;
+            border-radius: 8px; font-weight: bold; opacity: 0; transform: translateY(-20px); transition: all 0.3s; z-index: 1000; pointer-events: none;
+        }
+        #toast.show { opacity: 1; transform: translateY(0); }
+
+        /* Ecrã de Saída Dedicado */
+        .exit-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; width: 100%; text-align: center;
+        }
+        .safe-close-box {
+            background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            max-width: 500px; width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .top-actions { position: relative; justify-content: center; margin-bottom: 8px; width: 100%; flex-wrap: wrap; }
+            .controls { padding-left: 10px; padding-right: 10px; }
+            .nav-btn { width: clamp(104px, 26vw, 150px); }
+            .card-content { width: 100%; }
+            .question-section { width: 100%; align-self: stretch; }
+            .answer-section { width: 100%; align-self: stretch; }
+            .question { max-width: none; }
+        }
+
+        @media (max-height: 820px) {
+            .subtitle { margin-bottom: 4px; }
+            .persistent-review-btn { margin-top: 2px; }
+            .card { padding: 16px 18px; }
+            .question { line-height: 1.28; }
+            .answer-section { line-height: 1.45; }
+            .controls { padding-top: 8px; padding-bottom: 8px; }
+        }
+
+        @media (min-width: 1900px) {
+            #deck-ui { width: min(100%, 1440px); }
+            .container { gap: clamp(14px, 1.3vh, 22px); }
+            .card-content { width: min(100%, 1120px); }
+            .question-section { width: min(100%, 74ch); }
+            .answer-section { width: min(100%, 74ch); }
+        }
+
+        @media (max-width: 600px) {
+            .card { padding: 16px; }
+            .bookmark-btn { top: 0; right: 0; width: 38px; height: 38px; font-size: 1.4rem; }
+            .modal-content { padding: 22px; }
+            .instruction-list li { flex-direction: column; align-items: flex-start; gap: 5px;}
+            .modal-actions { flex-direction: column; }
+            .controls { flex-wrap: wrap; justify-content: center; }
+            .progress { order: -1; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="instructions-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Bem-vindo(a) ao Deck de Estudo!</h2>
+            <p>Navega pelas 50 perguntas e cria o teu próprio baralho de revisão focado nas que consideras mais difíceis.</p>
+            <ul class="instruction-list">
+                <li>
+                    <span><strong>Gravação Automática:</strong> Guardamos as questões de revisão e a tua posição atual no deck. Podes sair e voltar mais tarde!</span>
+                    <kbd>💾</kbd>
+                </li>
+                <li>
+                    <span><strong>Adicionar à Revisão:</strong> Botão <strong style="color:#4A90E2;">+</strong> ou a tecla</span>
+                    <kbd>+</kbd>
+                </li>
+                <li>
+                    <span><strong>Concluir/Remover:</strong> No modo de revisão, usa o botão <strong style="color:#2ECC71;">✔</strong> ou a tecla</span>
+                    <kbd>-</kbd>
+                </li>
+                <li>
+                    <span><strong>Abrir/Fechar Revisão:</strong> A qualquer momento, usa a tecla</span>
+                    <kbd>R</kbd>
+                </li>
+                <li>
+                    <span><strong>Ecrã Inteiro:</strong> Usa o botão no topo ou a tecla</span>
+                    <kbd>F</kbd>
+                </li>
+            </ul>
+            <div class="modal-actions">
+                <button class="start-btn" onclick="startDeck()">Começar a Estudar</button>
+                <button id="start-continue-btn" class="secondary-btn" onclick="continueDeck()">Continuar onde fiquei</button>
+            </div>
+            <p id="initial-progress-hint" class="resume-helper"></p>
+        </div>
+    </div>
+
+    <div id="resume-choice-modal" class="modal-overlay" style="display: none; opacity: 0;">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="resume-title">
+            <h2 id="resume-title">Sessão anterior encontrada</h2>
+            <div class="resume-chip" id="resume-chip">Progresso guardado</div>
+            <p id="resume-message">Queres continuar onde ficaste ou recomeçar do início?</p>
+            <div class="modal-actions">
+                <button id="resume-continue-btn" class="start-btn" onclick="continueFromSavedProgress()">Continuar onde fiquei</button>
+                <button class="secondary-btn" onclick="restartFromBeginning()">Recomeçar do início</button>
+            </div>
+            <p class="resume-helper">A tua revisão guardada mantém-se em qualquer opção. Enter continua e Esc recomeça.</p>
+        </div>
+    </div>
+
+    <div id="exit-screen" class="exit-screen" style="display: none;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 10px;">Sessão Terminada! 🎉</h1>
+        <p id="exit-message" style="font-size: 1.2rem; margin-bottom: 30px;"></p>
+        
+        <div class="safe-close-box">
+            <span style="font-size: 3.5rem; display: block; margin-bottom: 15px;">👋</span>
+            <p style="font-weight: bold; font-size: 1.3rem; margin-top: 0;">Podes fechar este separador com segurança.</p>
+            <p style="color: var(--text-light); font-size: 1rem;">Se houver questões para revisão, elas estão guardadas localmente neste navegador para a tua próxima sessão.</p>
+        </div>
+        
+        <button onclick="resumeStudy()" style="margin-top: 30px; background: transparent; color: var(--text-light); border: 2px solid var(--text-light); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">
+            Voltei atrás, quero continuar a estudar
+        </button>
+    </div>
+
+    <div id="toast">Adicionado à Revisão!</div>
+
+    <div id="deck-ui">
+        <div class="header">
+            <div class="top-actions">
+                <button id="btn-fullscreen" class="top-btn fullscreen-btn" onclick="toggleFullscreen()" title="Entrar em ecrã inteiro (Tecla F)">⛶ Ecrã inteiro</button>
+                <button class="top-btn exit-btn" onclick="exitStudy()" title="Fechar programa">🚪 Fechar programa</button>
+            </div>
+            <h1 id="main-title">Deck de Estudo</h1>
+            <p class="subtitle">Psicologia na Transição Digital — 50 Questões Fundamentais</p>
+            <button id="persistent-review-btn" class="persistent-review-btn" onclick="toggleReviewMode()">
+                ⭐ Deck de Revisão (<span id="review-count">0</span>) - Tecla R
+            </button>
+        </div>
+
+        <div class="container">
+            
+            <div class="review-banner" id="review-banner">
+                <span>⭐ Modo de Revisão Ativo</span>
+                <button onclick="toggleReviewMode()">Voltar ao Deck Principal</button>
+            </div>
+
+            <div class="card" id="study-card">
+                <div class="card-content">
+                    <div class="question-section">
+                        <button class="bookmark-btn" id="btn-bookmark" onclick="toggleReviewItem()" title="Adicionar/Remover do Deck de Revisão">+</button>
+                        <span class="question-tag">Pergunta</span>
+                        <p class="question" id="q-text">Carregando...</p>
+                    </div>
+                    <div class="answer-section" id="a-container">
+                        <p id="a-text">Carregando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="nav-btn" id="btn-prev" onclick="prevCard()">&#8592; Anterior</button>
+                <div class="progress" id="progress-counter">1 / 50</div>
+                <button class="nav-btn" id="btn-next" onclick="nextCard()">Próxima &#8594;</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BANK = [
+            { id:1, q:"Como a ética e deontologia são preservadas na era digital?", a:`A preservação da ética e da deontologia na era digital é garantida pela criação e aplicação de <strong>normas e diretrizes</strong> que assegurem o respeito pela privacidade, pela <strong>proteção de dados</strong> e pelos direitos dos utilizadores. Os psicólogos devem integrar estes princípios desde a recolha de dados até à intervenção. É importante garantir que as intervenções digitais sigam princípios de <strong>confidencialidade e consentimento informado</strong>, salvaguardando a dignidade e o bem-estar dos indivíduos.` },
+            { id:2, q:"Como a Psicologia aborda os fatores humanos em sistemas digitais?", a:`A Psicologia dos fatores humanos estuda como os indivíduos interagem com sistemas digitais para otimizar a <strong>usabilidade, a acessibilidade e a satisfaction do utilizador</strong>. Considera as <strong>limitações cognitivas e emocionais</strong>, ajudando a desenvolver sistemas intuitivos. Psicólogos colaboram com designers para criar interfaces que minimizem a frustração e reduzam o <strong>stress tecnológico</strong>.` },
+            { id:3, q:"Como a Psicologia contribui para a análise de arquiteturas digitais?", a:`Estuda como os <strong>elementos de design</strong> das plataformas influenciam o comportamento. Analisa a usabilidade, a experiência do utilizador e as <strong>estratégias persuasivas</strong> que podem induzir <strong>dependência digital</strong> ou compulsão. Pode orientar o desenvolvimento de interfaces que respeitem a <strong>autonomia dos utilizadores</strong> e previnam a manipulação e o vício.` },
+            { id:4, q:"Como a Psicologia pode ajudar a combater o efeito de desinibição online e a promover civismo digital?", a:`O efeito de desinibição online resulta frequentemente em agressividade ou <strong>discurso de ódio</strong>. A Psicologia ajuda a combater este fenómeno promovendo <strong>programas de sensibilização</strong> para o <strong>civismo digital</strong>, respeito e empatia. O ensino de <strong>competências emocionais e comportamentos pró-sociais</strong> reduz comportamentos agressivos.` },
+            { id:5, q:"Como a Psicologia pode ajudar a educar crianças sobre a navegação segura na internet?", a:`Desenvolvendo programas focados em <strong>competências de literacia digital</strong> (verificação de informações, proteção de dados e identificação de riscos como o <strong>cyberbullying</strong>). Ensinar <strong>regulação emocional e tomada de decisões conscientes</strong> ajuda as crianças a responder a situações de risco e promove o <strong>autocontrolo</strong> no ambiente digital.` },
+            { id:6, q:"Como a Psicologia pode ajudar a otimizar o teletrabalho?", a:`Estudando os fatores que afetam a <strong>produtividade e o bem-estar</strong> (gestão de tempo, distração, fronteira entre trabalho/vida pessoal). Oferece <strong>estratégias de gestão de tempo</strong> e ferramentas de <strong>regulação emocional</strong> para lidar com o stress e o isolamento, promovendo o <strong>equilíbrio trabalho/vida pessoal</strong>.` },
+            { id:7, q:"Como a Psicologia pode auxiliar na promoção da cidadania digital?", a:`Fomentando comportamentos <strong>éticos e responsáveis</strong>. Incentiva programas que promovam a empatia e a participação cívica. Ensina <strong>competências socioemocionais</strong> (regulação emocional, comunicação não agressiva) essenciais para interações saudáveis, fundamentais no combate ao <strong>trolling e cyberbullying</strong>.` },
+            { id:8, q:"Como a Psicologia pode contribuir para a ciberresiliência dos cidadãos?", a:`A ciberresiliência é a capacidade de lidar com ameaças digitais. A Psicologia promove-a ensinando <strong>pensamento crítico</strong> e desenvolvendo <strong>estratégias de coping</strong>. Programas de <strong>literacia digital e cibersegurança</strong> capacitam os cidadãos a agir de forma consciente e segura perante incidentes cibernéticos.` },
+            { id:9, q:"Como a Psicologia pode influenciar o desenvolvimento de algoritmos moralmente responsáveis?", a:`Fornecendo a compreensão de como <strong>preconceitos cognitivos e vieses sociais</strong> são incorporados na IA. Psicólogos colaboram com engenheiros para eliminar <strong>vieses algorítmicos</strong>, garantindo algoritmos <strong>justos e equitativos</strong>, e orientando para a criação de <strong>interfaces transparentes</strong>.` },
+            { id:10, q:"Como a Realidade Virtual pode ser utilizada na formação de psicólogos?", a:`Oferecendo um <strong>ambiente controlado e simulado</strong> para criar cenários clínicos complexos. Permite treinar competências terapêuticas e de diagnóstico <strong>sem riscos para os pacientes</strong>. É útil no treino de intervenções (ex: fobias) com alta <strong>validade ecológica</strong> e segurança na tomada de decisão clínica.` },
+            { id:11, q:"Como a transição digital afeta diferentes culturas?", a:`Pode promover inclusão em algumas culturas, mas <strong>acentuar desigualdades</strong> noutras com acesso limitado. O conteúdo tende a refletir a <strong>cultura dominante</strong>, criando barreiras à preservação de identidades de minorias. Psicólogos ajudam a garantir uma transição digital <strong>inclusiva, diversa e sensível às diferenças culturais</strong>.` },
+            { id:12, q:"Como as fake news influenciam a tomada de decisão e como a Psicologia pode intervir?", a:`Distorcem a perceção ao explorar <strong>preconceitos cognitivos (ex: viés de confirmação)</strong>. A Psicologia intervém promovendo o <strong>pensamento crítico e a verificação de fontes</strong> através de programas de <strong>literacia digital</strong>, ajudando os utilizadores a identificar conteúdos falsos.` },
+            { id:13, q:"Como as tecnologias digitais afetam a saúde mental?", a:`Têm impacto misto: oferecem apoio (terapia online), mas o uso excessivo leva a <strong>ansiedade, depressão e distúrbios do sono</strong>. A <strong>comparação social e exposição constante</strong> nas redes sociais afeta a autoestima e gera isolamento. Psicólogos promovem estratégias de <strong>coping e gestão saudável do tempo online</strong>.` },
+            { id:14, q:"Como as tecnologias digitais influenciam o desenvolvimento infantil?", a:`Promovem <strong>desenvolvimento cognitivo</strong> com recursos educativos, mas o uso excessivo prejudica o <strong>desenvolvimento social e emocional</strong>, causando isolamento e problemas de atenção/sono. A <strong>monitorização e o equilíbrio</strong> no uso são essenciais.` },
+            { id:15, q:"Como as tecnologias podem apoiar o envelhecimento saudável?", a:`Oferecendo ferramentas (monitorização de saúde, socialização online) que promovem a <strong>autonomia, qualidade de vida e bem-estar emocional</strong> dos idosos. Facilitam acesso a cuidados e combatem o isolamento. Psicólogos ajudam a criar tecnologias <strong>personalizadas e fáceis de usar</strong>.` },
+            { id:16, q:"Como as tecnologias podem ser usadas para apoiar indivíduos com perturbações do espectro do autismo?", a:`Oferecem plataformas de comunicação que facilitam a <strong>expressão emocional e socialização</strong>. Aplicações de Realidade Virtual treinam <strong>competências sociais</strong> em ambientes simulados e controlados, ajudando a <strong>reduzir a ansiedade</strong> em situações novas e fomentando a integração social.` },
+            { id:17, q:"Como garantir a gestão ética de dados pessoais?", a:`Aplicando os princípios de <strong>privacidade, transparência e consentimento informado</strong>. Os utilizadores devem compreender como os seus dados são tratados. Psicólogos ajudam a desenhar políticas que respeitam a privacidade, educando para os <strong>direitos digitais (ex: RGPD)</strong>.` },
+            { id:18, q:"Como o Big Data pode ser relevante para a Psicologia?", a:`Permite a análise de <strong>grandes volumes de dados comportamentais</strong>, fornecendo insights sobre padrões sociais e de saúde mental, ajudando a criar <strong>intervenções personalizadas</strong>. No entanto, exige <strong>princípios éticos rigorosos</strong>, como a proteção de dados e o consentimento.` },
+            { id:19, q:"Como os princípios de psicologia comportamental são aplicados na criação de ambientes online viciantes?", a:`Utilizando <strong>reforço intermitente (recompensas imprevisíveis)</strong> e gamificação. Notificações e likes ativam os sistemas de recompensa do cérebro (gerando <strong>dopamina</strong>), criando uma <strong>dependência digital</strong>. A psicologia ajuda a identificar estes padrões e promover uso consciente.` },
+            { id:20, q:"Como os psicólogos podem auxiliar empresas a desenvolver políticas éticas de privacidade de dados?", a:`Garantindo que as práticas respeitem a <strong>autonomia e privacidade</strong> dos utilizadores, identificando práticas invasivas ou manipulativas. Promovem a <strong>transparência e o consentimento informado</strong>, assegurando que o bem-estar dos utilizadores não seja comprometido.` },
+            { id:21, q:"De que forma a Psicologia pode contribuir para o design de intervenções educativas digitais inclusivas?", a:`Aplicando conhecimentos sobre <strong>diversidade cognitiva e comportamental</strong>. Ajuda a criar materiais acessíveis a diferentes <strong>estilos de aprendizagem e necessidades especiais</strong>, promovendo a autonomia dos utilizadores através de intervenções <strong>personalizáveis</strong>.` },
+            { id:22, q:"De que forma a Psicologia pode influenciar políticas públicas na era digital?", a:`Fornecendo <strong>dados científicos</strong> sobre o impacto tecnológico no comportamento. Consultoria para regulamentações que protejam a <strong>privacidade, segurança e equidade</strong>, e criação de programas de <strong>educação digital e literacia</strong>.` },
+            { id:23, q:"De que forma o Big Data influencia a investigação em Psicologia?", a:`Oferece acesso a grandes volumes de dados que permitem análises e identificação de <strong>padrões comportamentais em larga escala</strong>, gerando teorias mais robustas. Levanta, contudo, <strong>questões éticas</strong> relativas à privacidade e proteção de dados.` },
+            { id:24, q:"De que maneira a literacia digital pode ser uma ferramenta de empoderamento social?", a:`Capacitando pessoas para navegar, usar o <strong>pensamento crítico</strong> e avaliar fontes. Promove a <strong>autonomia e inclusão</strong> de grupos marginalizados, permitindo o acesso a oportunidades e diminuindo as desigualdades. Psicólogos desenham programas para <strong>populações vulneráveis</strong>.` },
+            { id:25, q:"De que maneira a transição digital impacta a saúde psicológica?", a:`Impacto duplo: oferece ferramentas de autocuidado (teleterapia), mas gera <strong>stress, sobrecarga de informação e dependência</strong>. Afeta o sono e leva ao <strong>isolamento social</strong>. Psicólogos intervêm para promover o <strong>equilíbrio saudável</strong>.` },
+            { id:26, q:"De que maneira os psicólogos podem colaborar na criação de algoritmos transparentes e justos?", a:`Trazendo a compreensão sobre <strong>preconceitos e vieses sociais</strong> que afetam a tomada de decisão da IA. Garantem que os algoritmos respeitem a <strong>equidade e não discriminação</strong> e promovem o design de <strong>interfaces transparentes</strong>.` },
+            { id:27, q:"O que é resiliência digital e como promovê-la?", a:`É a capacidade de enfrentar <strong>riscos digitais (desinformação, ciberataques)</strong>. Promove-se através do investimento em <strong>literacia digital, regulação emocional e pensamento crítico</strong>, permitindo aos indivíduos enfrentar adversidades sem comprometer o seu bem-estar.` },
+            { id:28, q:"Por que é importante promover a literacia digital?", a:`Porque capacita utilizadores a <strong>navegar de forma crítica e segura</strong>, avaliando credibilidade e gerindo o <strong>tempo online</strong>. Reduz a vulnerabilidade a fraudes, ataques e desinformação, e promove <strong>comportamentos éticos</strong>.` },
+            { id:29, q:"Quais estratégias são eficazes na prevenção de distúrbios associados ao uso digital?", a:`Promoção de hábitos saudáveis: <strong>limitação do tempo de uso, horários específicos e espaços sem tecnologia</strong> (equilíbrio online/offline). Educação sobre os riscos (dependência, fadiga mental) e a importância da <strong>intervenção precoce</strong>.` },
+            { id:30, q:"Quais são as implicações psicológicas do uso de realidade aumentada no dia-a-dia?", a:`Pode enriquecer a aprendizagem, mas o uso prolongado causa <strong>confusão sensorial e sobrecarga cognitiva</strong>. O uso intensivo interfere com interações humanas levando ao <strong>isolamento social</strong>. Psicólogos ajudam a minimizar estes efeitos adversos.` },
+            { id:31, q:"Quais são as tendências futuras na Psicologia da transição digital?", a:`Uso de IA e <strong>Big Data</strong> para prever comportamentos, desenvolvimento de intervenções online para saúde mental, e maior preocupação na definição de <strong>diretrizes éticas</strong>. Crescimento do uso de <strong>RV e RA como ferramentas terapêuticas</strong>.` },
+            { id:32, q:"Quais são os benefícios e os perigos psicológicos da gamificação em ambientes digitais?", a:`Benefícios: aumenta a <strong>motivação, engajamento e aprendizagem</strong> pelo sentimento de progresso. Perigos: risco de gerar <strong>dependência, fadiga ou competitividade excessiva e stress</strong>, devido ao reforço constante e mal projetado.` },
+            { id:33, q:"Quais são os desafios éticos apresentados pela Inteligência Artificial?", a:`Proteção da privacidade, consentimento informado e <strong>prevenção de vieses algorítmicos</strong> (evitar discriminação). Levanta questões sobre a <strong>autonomia humana</strong>. Psicólogos ajudam a desenvolver diretrizes para uma IA <strong>responsável e transparente</strong>.` },
+            { id:34, q:"Quais são os desafios psicológicos impostos pelo trabalho remoto e como superá-los?", a:`Desafios: <strong>isolamento social, aumento de stress e dificuldade de equilíbrio</strong>. Soluções: desenvolvimento de <strong>rotinas de autocuidado, estabelecimento de limites claros e atividades de socialização online</strong>.` },
+            { id:35, q:"Quais são os principais desafios comportamentais na era digital?", a:`A <strong>gestão da privacidade, a superação da distração e a multitarefa</strong>. As plataformas geram perda de foco. O desafio é criar <strong>limites de uso, autocontrolo</strong> e manter o equilíbrio entre vida digital e offline.` },
+            { id:36, q:"Quais são os riscos psicológicos associados ao uso excessivo de technologies digitais?", a:`Ansiedade, depressão, <strong>fadiga mental, isolamento social e burnout digital</strong>. A autoestima é afetada pela <strong>comparação social</strong> e há distúrbios de sono causados pela <strong>luz azul</strong>. Exige estratégias de autocontrolo.` },
+            { id:37, q:"Qual a importância da literacia digital e qual o papel dos psicólogos nesta área?", a:`Essencial para navegar sem cair em <strong>fraudes, desinformação ou falhas de privacidade</strong>. Psicólogos desenvolvem programas para que os indivíduos aprendam a avaliar fontes e a reconhecer <strong>comportamentos manipulativos</strong>.` },
+            { id:38, q:"Qual a importância do envolvimento comunitário em ambientes digitais?", a:`Cria espaços inclusivos e seguros, gerando <strong>solidariedade e apoio mútuo</strong>. Combate o isolamento social, o cyberbullying e a desinformação, valorizando uma cultura de <strong>civismo e respeito mútuo</strong>.` },
+            { id:39, q:"Qual a relevância da ética no desenvolvimento de sistemas de IA que afetam o comportamento humano?", a:`Crucial porque a IA influencia decisões e valores. É vital respeitar a <strong>privacidade, evitar discriminação e proteger a autonomia</strong>. A <strong>transparência e o consentimento informado</strong> evitam a manipulação dos utilizadores.` },
+            { id:40, q:"Qual é a importância da análise psicológica das arquiteturas digitais?", a:`Entender como o design (usabilidade e <strong>estratégias persuasivas</strong>, como notificações) molda as decisões. É vital avaliar se induzem comportamentos saudáveis ou <strong>dependência e frustração (ex: necessidade de validação nas redes sociais)</strong>.` },
+            { id:41, q:"Qual é a relação entre o uso das redes sociais e o aumento da ansiedade e depressão?", a:`O uso excessivo gera <strong>comparação social negativa</strong>, reduzindo a autoestima. A busca por feedback imediato ("gostos") gera uma <strong>dependência de validação externa e instabilidade emocional</strong>.` },
+            { id:42, q:"Qual é o papel da Psicologia na cibersegurança?", a:`Estuda as motivações pelas quais os utilizadores adotam <strong>comportamentos de risco ou ignoram a segurança (ex: phishing)</strong>. Desenvolve formação para promover <strong>comportamentos seguros e resilientes</strong>, minimizando o erro humano.` },
+            { id:43, q:"Qual o impacto das arquiteturas digitais manipulativas na autonomia dos utilizadores?", a:`Uso de <strong>dark patterns</strong> afeta decisões subliminarmente, induzindo ações impulsivas sem consentimento pleno. A Psicologia ajuda a identificar isto, exigindo interfaces que protejam escolhas <strong>informadas e éticas</strong>.` },
+            { id:44, q:"Qual o impacto das redes sociais na identidade e interações sociais?", a:`Facilitam a criação de comunidades, mas induzem <strong>comparação social negativa</strong>, ansiedade e isolamento. As interações tendem a ser mais <strong>superficiais</strong>, afetando a qualidade e a profundidade das relações humanas.` },
+            { id:45, q:"Qual o impacto das tecnologias digitais na educação?", a:`Permitem <strong>personalização e ensino autónomo</strong>, mas trazem desafios como <strong>distração e desigualdade de acesso</strong>. A <strong>literacia digital</strong> é essencial para alunos e professores as usarem de forma eficaz.` },
+            { id:46, q:"Qual o impacto das tecnologias digitais no desenvolvimento de competências sociais em crianças?", a:`Ajudam na comunicação online, mas o uso excessivo reduz as <strong>interações face a face</strong>, que são críticas para desenvolver <strong>empatia, comunicação não verbal e resolução de conflitos</strong>.` },
+            { id:47, q:"Qual o papel da Psicologia na análise do impacto psicológico das campanhas de desinformação online?", a:`A desinformação gera ansiedade e altera a perceção. Psicólogos identificam fatores de <strong>vulnerabilidade à manipulação</strong> e desenvolvem intervenções de <strong>pensamento crítico e resiliência cognitiva</strong>.` },
+            { id:48, q:"Qual o papel da Psicologia na prevenção do cyberbullying?", a:`Compreender as dinâmicas psicológicas para criar programas de sensibilização escolar e familiar. Foca-se em promover a <strong>empatia, respeito e regulação emocional</strong>, e oferece <strong>apoio psicológico a vítimas e perpetradores</strong>.` },
+            { id:49, q:"Qual o papel da Psicologia no combate à desinformação?", a:`Estudando mecanismos como os <strong>preconceitos cognitivos (viés de confirmação)</strong> que fazem as pessoas acreditar em fake news. Promove campanhas baseadas na <strong>literacia digital e verificação de fontes</strong>.` },
+            { id:50, q:"Qual o papel dos psicólogos na adaptação a novas tecnologias?", a:`Avaliando fatores de resistência como o <strong>medo da mudança e stress tecnológico</strong>. Desenvolvem estratégias de suporte emocional para promover a <strong>autoeficácia</strong> e uma integração e transição saudáveis.` },
+        ];
+
+        const STORAGE_KEY = 'psicologiaReviewDeck';
+        const PROGRESS_STORAGE_KEY = 'psicologiaProgressoSessao';
+
+        let reviewDeck = [];
+        let isReviewMode = false;
+        let currentIndex = 0;
+        let deckStarted = false;
+        let pendingSavedProgress = null;
+        let lastMainDeckQuestionId = BANK[0].id;
+
+        function getBankIndexById(questionId) {
+            return BANK.findIndex(q => q.id === questionId);
+        }
+
+        function getReviewIndexById(questionId) {
+            return reviewDeck.findIndex(q => q.id === questionId);
+        }
+
+        function loadSavedData() {
+            try {
+                const savedIds = JSON.parse(localStorage.getItem(STORAGE_KEY));
+                if (savedIds && Array.isArray(savedIds)) {
+                    reviewDeck = BANK.filter(q => savedIds.includes(q.id));
+                }
+                updateReviewUI();
+            } catch (e) {
+                console.error("Erro ao carregar dados do LocalStorage", e);
+            }
+        }
+
+        function saveData() {
+            try {
+                const idsToSave = reviewDeck.map(q => q.id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(idsToSave));
+            } catch (e) {
+                console.error("Erro ao guardar dados no LocalStorage", e);
+            }
+        }
+
+        function loadSavedProgress() {
+            try {
+                const rawProgress = localStorage.getItem(PROGRESS_STORAGE_KEY);
+                if (!rawProgress) return null;
+
+                const savedProgress = JSON.parse(rawProgress);
+                if (!savedProgress || typeof savedProgress !== 'object') return null;
+                if (typeof savedProgress.questionId !== 'number') return null;
+
+                return {
+                    questionId: savedProgress.questionId,
+                    isReviewMode: Boolean(savedProgress.isReviewMode),
+                    savedAt: savedProgress.savedAt || null
+                };
+            } catch (e) {
+                console.error("Erro ao carregar progresso da sessão", e);
+                return null;
+            }
+        }
+
+        function saveProgress() {
+            if (!deckStarted) return;
+
+            const currentDeck = getActiveDeck();
+            if (!currentDeck.length || currentIndex < 0 || currentIndex >= currentDeck.length) return;
+
+            try {
+                localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({
+                    questionId: currentDeck[currentIndex].id,
+                    isReviewMode,
+                    savedAt: new Date().toISOString()
+                }));
+            } catch (e) {
+                console.error("Erro ao guardar progresso da sessão", e);
+            }
+        }
+
+        function hasMeaningfulSavedProgress(savedProgress) {
+            if (!savedProgress) return false;
+
+            const bankIndex = getBankIndexById(savedProgress.questionId);
+            const canResumeReview = savedProgress.isReviewMode && getReviewIndexById(savedProgress.questionId) > -1;
+
+            if (canResumeReview) return true;
+            return bankIndex > 0;
+        }
+
+        function setModeUI(reviewMode) {
+            isReviewMode = reviewMode;
+
+            if (reviewMode) {
+                document.body.classList.add('mode-review');
+                document.getElementById('review-banner').style.display = 'flex';
+                document.getElementById('main-title').innerText = "Deck de Revisão";
+            } else {
+                document.body.classList.remove('mode-review');
+                document.getElementById('review-banner').style.display = 'none';
+                document.getElementById('main-title').innerText = "Deck de Estudo";
+            }
+        }
+
+        function updateFullscreenUI() {
+            const fullscreenBtn = document.getElementById('btn-fullscreen');
+            if (!fullscreenBtn) return;
+
+            const isFullscreen = Boolean(document.fullscreenElement);
+            fullscreenBtn.classList.toggle('active', isFullscreen);
+            fullscreenBtn.innerText = isFullscreen ? "🗗 Modo janela" : "⛶ Ecrã inteiro";
+            fullscreenBtn.title = isFullscreen ? "Voltar ao modo janela (Tecla F)" : "Entrar em ecrã inteiro (Tecla F)";
+        }
+
+        async function toggleFullscreen() {
+            try {
+                if (!document.fullscreenElement) {
+                    if (document.documentElement.requestFullscreen) {
+                        await document.documentElement.requestFullscreen();
+                    }
+                } else if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                }
+            } catch (e) {
+                showToast("Não foi possível alterar o modo de ecrã inteiro.", 3000);
+            }
+        }
+
+        function enterFullscreenIfPossible() {
+            if (document.fullscreenElement) return;
+            if (!document.documentElement.requestFullscreen) return;
+
+            document.documentElement.requestFullscreen().catch(() => {
+                // Sem erro visível para evitar ruído quando o navegador bloqueia.
+            });
+        }
+
+        function closeInstructionsModal(callback) {
+            const instructionsModal = document.getElementById('instructions-modal');
+            instructionsModal.style.opacity = '0';
+            setTimeout(() => {
+                instructionsModal.style.display = 'none';
+                if (typeof callback === 'function') callback();
+            }, 300);
+        }
+
+        function openResumeModal(savedProgress) {
+            const resumeModal = document.getElementById('resume-choice-modal');
+            const resumeChip = document.getElementById('resume-chip');
+            const resumeMessage = document.getElementById('resume-message');
+
+            const reviewIndex = getReviewIndexById(savedProgress.questionId);
+            const bankIndex = getBankIndexById(savedProgress.questionId);
+            const resumeInReview = savedProgress.isReviewMode && reviewIndex > -1;
+
+            const position = resumeInReview ? reviewIndex + 1 : Math.max(1, bankIndex + 1);
+            const total = resumeInReview ? reviewDeck.length : BANK.length;
+            const modeLabel = resumeInReview ? "Modo de Revisão" : "Deck Principal";
+
+            resumeChip.innerText = `${modeLabel}: ${position} / ${total}`;
+            resumeMessage.innerText = `Encontrámos progresso guardado na pergunta ${position}. Queres continuar de onde ficaste?`;
+
+            resumeModal.style.display = 'flex';
+            requestAnimationFrame(() => {
+                resumeModal.style.opacity = '1';
+            });
+
+            document.getElementById('resume-continue-btn').focus();
+        }
+
+        function closeResumeModal(callback) {
+            const resumeModal = document.getElementById('resume-choice-modal');
+            resumeModal.style.opacity = '0';
+            setTimeout(() => {
+                resumeModal.style.display = 'none';
+                if (typeof callback === 'function') callback();
+            }, 200);
+        }
+
+        function startSession({ questionId = BANK[0].id, useReviewMode = false } = {}) {
+            const safeQuestionId = BANK.some(q => q.id === questionId) ? questionId : BANK[0].id;
+            lastMainDeckQuestionId = safeQuestionId;
+
+            if (useReviewMode) {
+                const reviewIndex = getReviewIndexById(safeQuestionId);
+                if (reviewIndex > -1) {
+                    currentIndex = reviewIndex;
+                    setModeUI(true);
+                } else {
+                    currentIndex = Math.max(0, getBankIndexById(safeQuestionId));
+                    setModeUI(false);
+                }
+            } else {
+                currentIndex = Math.max(0, getBankIndexById(safeQuestionId));
+                setModeUI(false);
+            }
+
+            deckStarted = true;
+            updateReviewUI();
+            renderCard();
+        }
+
+        function continueFromSavedProgress() {
+            enterFullscreenIfPossible();
+            const savedProgress = pendingSavedProgress || loadSavedProgress();
+            closeResumeModal(() => {
+                if (!savedProgress) {
+                    startSession();
+                    return;
+                }
+
+                startSession({
+                    questionId: savedProgress.questionId,
+                    useReviewMode: savedProgress.isReviewMode
+                });
+            });
+        }
+
+        function restartFromBeginning() {
+            enterFullscreenIfPossible();
+            closeResumeModal(() => {
+                startSession();
+                showToast("Sessão reiniciada no início.", 2400);
+            });
+        }
+
+        function syncInitialMenuState() {
+            loadSavedData();
+            pendingSavedProgress = loadSavedProgress();
+
+            const continueBtn = document.getElementById('start-continue-btn');
+            const progressHint = document.getElementById('initial-progress-hint');
+            if (!continueBtn || !progressHint) return;
+
+            const hasSavedProgress = Boolean(pendingSavedProgress);
+            continueBtn.disabled = !hasSavedProgress;
+
+            if (!hasSavedProgress) {
+                progressHint.innerText = "Ainda não existe sessão guardada para continuar.";
+                return;
+            }
+
+            const reviewIndex = getReviewIndexById(pendingSavedProgress.questionId);
+            const bankIndex = getBankIndexById(pendingSavedProgress.questionId);
+            const resumeInReview = pendingSavedProgress.isReviewMode && reviewIndex > -1;
+            const position = resumeInReview ? reviewIndex + 1 : Math.max(1, bankIndex + 1);
+            const total = resumeInReview ? reviewDeck.length : BANK.length;
+            const modeLabel = resumeInReview ? "Modo de Revisão" : "Deck Principal";
+
+            progressHint.innerText = `Progresso guardado: ${modeLabel} (${position} / ${total}).`;
+        }
+
+        function startDeck() {
+            enterFullscreenIfPossible();
+            closeInstructionsModal(() => {
+                loadSavedData();
+                startSession();
+            });
+        }
+
+        function continueDeck() {
+            const savedProgress = loadSavedProgress();
+            pendingSavedProgress = savedProgress;
+            if (!savedProgress) {
+                showToast("Não encontrámos sessão guardada. A começar do início.", 2600);
+                startDeck();
+                return;
+            }
+
+            enterFullscreenIfPossible();
+            closeInstructionsModal(() => {
+                loadSavedData();
+                startSession({
+                    questionId: savedProgress.questionId,
+                    useReviewMode: savedProgress.isReviewMode
+                });
+                showToast("Sessão retomada.", 2200);
+            });
+        }
+
+        // Nova Lógica de Saída - Alterna entre o Deck e o Ecrã de Despedida
+        function exitStudy() {
+            saveProgress();
+            document.getElementById('deck-ui').style.display = 'none';
+
+            const exitScreen = document.getElementById('exit-screen');
+            const exitMessage = document.getElementById('exit-message');
+
+            if (reviewDeck.length > 0) {
+                exitMessage.innerHTML = `Tens <strong>${reviewDeck.length} questões</strong> guardadas para reveres na próxima vez.`;
+            } else {
+                exitMessage.innerHTML = "Não tens questões pendentes para revisão.<br>Excelente trabalho de estudo!";
+            }
+
+            exitScreen.style.display = 'flex';
+        }
+
+        function resumeStudy() {
+            document.getElementById('exit-screen').style.display = 'none';
+            document.getElementById('deck-ui').style.display = 'flex';
+        }
+
+        function getActiveDeck() {
+            return isReviewMode ? reviewDeck : BANK;
+        }
+
+        function showToast(message, duration = 2500) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        function updateReviewUI() {
+            const btn = document.getElementById('persistent-review-btn');
+            const countSpan = document.getElementById('review-count');
+            countSpan.innerText = reviewDeck.length;
+
+            if (reviewDeck.length > 0 && !isReviewMode) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        function renderCard() {
+            const currentDeck = getActiveDeck();
+
+            if (isReviewMode && currentDeck.length === 0) {
+                toggleReviewMode();
+                return;
+            }
+
+            const currentQuestion = currentDeck[currentIndex];
+            document.getElementById('a-container').scrollTop = 0;
+            if (!isReviewMode) {
+                lastMainDeckQuestionId = currentQuestion.id;
+            }
+
+            document.getElementById('q-text').innerText = currentQuestion.q;
+            document.getElementById('a-text').innerHTML = currentQuestion.a;
+
+            document.getElementById('progress-counter').innerText = `${currentIndex + 1} / ${currentDeck.length}`;
+            document.getElementById('btn-prev').disabled = currentIndex === 0;
+
+            if (!isReviewMode && currentIndex === currentDeck.length - 1 && reviewDeck.length > 0) {
+                document.getElementById('btn-next').innerHTML = "Rever Guardadas";
+                document.getElementById('btn-next').disabled = false;
+            } else {
+                document.getElementById('btn-next').innerHTML = "Próxima &#8594;";
+                document.getElementById('btn-next').disabled = currentIndex === currentDeck.length - 1;
+            }
+
+            const isBookmarked = reviewDeck.some(q => q.id === currentQuestion.id);
+            const bookmarkBtn = document.getElementById('btn-bookmark');
+
+            if (isReviewMode) {
+                bookmarkBtn.innerHTML = "&#10004;";
+                bookmarkBtn.title = "Remover da Revisão (Tecla -)";
+            } else {
+                bookmarkBtn.innerHTML = "+";
+                bookmarkBtn.title = "Adicionar/Remover do Deck de Revisão";
+                if (isBookmarked) {
+                    bookmarkBtn.classList.add('active');
+                } else {
+                    bookmarkBtn.classList.remove('active');
+                }
+            }
+
+            saveProgress();
+        }
+
+        function toggleReviewItem(action) {
+            if(!deckStarted) return;
+
+            const currentQuestion = getActiveDeck()[currentIndex];
+            const indexInReview = reviewDeck.findIndex(q => q.id === currentQuestion.id);
+
+            if (action === 'remove') {
+                if (indexInReview > -1) {
+                    reviewDeck.splice(indexInReview, 1);
+                    showToast("Removido da Revisão");
+                } else return;
+            } else if (action === 'add') {
+                if (indexInReview === -1) {
+                    reviewDeck.push(currentQuestion);
+                    showToast("Adicionado à Revisão!");
+                } else return;
+            } else {
+                if (indexInReview > -1) {
+                    reviewDeck.splice(indexInReview, 1);
+                    showToast("Removido da Revisão");
+                } else {
+                    reviewDeck.push(currentQuestion);
+                    showToast("Adicionado à Revisão!");
+                }
+            }
+
+            saveData();
+
+            if (isReviewMode) {
+                if (reviewDeck.length === 0) {
+                    toggleReviewMode();
+                } else {
+                    if (currentIndex >= reviewDeck.length) currentIndex = reviewDeck.length - 1;
+                    renderCard();
+                }
+            } else {
+                renderCard();
+            }
+
+            updateReviewUI();
+        }
+
+        function toggleReviewMode() {
+            if(!deckStarted) return;
+
+            if (!isReviewMode) {
+                if (reviewDeck.length === 0) {
+                    showToast("Ainda não tens perguntas guardadas para revisão.");
+                    return;
+                }
+                const mainQuestion = BANK[currentIndex];
+                if (mainQuestion) {
+                    lastMainDeckQuestionId = mainQuestion.id;
+                }
+                currentIndex = 0;
+                setModeUI(true);
+                showToast("A entrar no Modo de Revisão");
+            } else {
+                currentIndex = Math.max(0, getBankIndexById(lastMainDeckQuestionId));
+                setModeUI(false);
+                showToast("De volta ao Deck Principal. Usa 'R' para voltar à revisão.", 3500);
+            }
+            updateReviewUI();
+            renderCard();
+        }
+
+        function nextCard() {
+            if(!deckStarted) return;
+            const currentDeck = getActiveDeck();
+
+            if (!isReviewMode && currentIndex === currentDeck.length - 1 && reviewDeck.length > 0) {
+                toggleReviewMode();
+                return;
+            }
+
+            if (currentIndex < currentDeck.length - 1) {
+                currentIndex++;
+                renderCard();
+            }
+        }
+
+        function prevCard() {
+            if(!deckStarted) return;
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderCard();
+            }
+        }
+
+        window.addEventListener('beforeunload', saveProgress);
+        document.addEventListener('fullscreenchange', updateFullscreenUI);
+        document.addEventListener('keydown', function(event) {
+            const isInputField = event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA';
+            const isResumeModalOpen = document.getElementById('resume-choice-modal').style.display === 'flex';
+
+            if (isResumeModalOpen) {
+                if (event.key === 'Enter' && !isInputField) {
+                    event.preventDefault();
+                    continueFromSavedProgress();
+                } else if (event.key === 'Escape' && !isInputField) {
+                    event.preventDefault();
+                    restartFromBeginning();
+                }
+                return;
+            }
+
+            if (!deckStarted || isInputField) return;
+            
+            // Ignorar atalhos se o ecrã de saída estiver visível
+            if (document.getElementById('exit-screen').style.display === 'flex') return;
+
+            if (event.key === 'ArrowRight') {
+                nextCard();
+            } else if (event.key === 'ArrowLeft') {
+                prevCard();
+            } else if (event.key === '+') {
+                toggleReviewItem('add');
+            } else if (event.key === '-') {
+                toggleReviewItem('remove');
+            } else if (event.key.toLowerCase() === 'f') {
+                event.preventDefault();
+                toggleFullscreen();
+            } else if (event.key.toLowerCase() === 'r') {
+                toggleReviewMode();
+            }
+        });
+
+        syncInitialMenuState();
+        updateFullscreenUI();
+
+    </script>
+</body>
+</html>
+
