@@ -168,6 +168,19 @@
             color: white;
             border-color: #35598E;
         }
+        .help-btn {
+            background: white;
+            color: #35598E;
+            border: 2px solid #D3DFEF;
+            min-width: 42px;
+            padding: 9px 12px;
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+        .help-btn:hover {
+            border-color: #AFC5E3;
+            background: #F6FAFF;
+        }
 
         /* Botão Permanente de Acesso à Revisão */
         .persistent-review-btn {
@@ -374,8 +387,8 @@
 
     <div id="instructions-modal" class="modal-overlay">
         <div class="modal-content">
-            <h2>Bem-vindo(a) ao Deck de Estudo!</h2>
-            <p>Navega pelas 50 perguntas e cria o teu próprio baralho de revisão focado nas que consideras mais difíceis.</p>
+            <h2 id="instructions-title">Bem-vindo(a) ao Deck de Estudo!</h2>
+            <p id="instructions-description">Navega pelas 50 perguntas e cria o teu próprio baralho de revisão focado nas que consideras mais difíceis.</p>
             <ul class="instruction-list">
                 <li>
                     <span><strong>Gravação Automática:</strong> Guardamos as questões de revisão e a tua posição atual no deck. Podes sair e voltar mais tarde!</span>
@@ -390,6 +403,10 @@
                     <kbd>-</kbd>
                 </li>
                 <li>
+                    <span><strong>Avançar/Recuar:</strong> Usa as setas do teclado</span>
+                    <kbd>← / →</kbd>
+                </li>
+                <li>
                     <span><strong>Abrir/Fechar Revisão:</strong> A qualquer momento, usa a tecla</span>
                     <kbd>R</kbd>
                 </li>
@@ -397,10 +414,15 @@
                     <span><strong>Ecrã Inteiro:</strong> Usa o botão no topo ou a tecla</span>
                     <kbd>F</kbd>
                 </li>
+                <li>
+                    <span><strong>Rever Instruções:</strong> Usa o botão <strong>?</strong> no topo, ou a tecla</span>
+                    <kbd>?</kbd>
+                </li>
             </ul>
             <div class="modal-actions">
-                <button class="start-btn" onclick="startDeck()">Começar a Estudar</button>
+                <button id="start-fresh-btn" class="start-btn" onclick="startDeck()">Começar a Estudar</button>
                 <button id="start-continue-btn" class="secondary-btn" onclick="continueDeck()">Continuar onde fiquei</button>
+                <button id="help-resume-btn" class="start-btn" style="display: none;" onclick="resumeAfterHelp()">Continuar de onde estava</button>
             </div>
             <p id="initial-progress-hint" class="resume-helper"></p>
         </div>
@@ -439,6 +461,7 @@
     <div id="deck-ui">
         <div class="header">
             <div class="top-actions">
+                <button id="btn-help" class="top-btn help-btn" onclick="openHelpInstructions()" title="Ver instruções iniciais">?</button>
                 <button id="btn-fullscreen" class="top-btn fullscreen-btn" onclick="toggleFullscreen()" title="Entrar em ecrã inteiro (Tecla F)">⛶ Ecrã inteiro</button>
                 <button class="top-btn exit-btn" onclick="exitStudy()" title="Fechar programa">🚪 Fechar programa</button>
             </div>
@@ -540,6 +563,7 @@
         let deckStarted = false;
         let pendingSavedProgress = null;
         let lastMainDeckQuestionId = BANK[0].id;
+        let instructionsModalMode = 'initial';
 
         function getBankIndexById(questionId) {
             return BANK.findIndex(q => q.id === questionId);
@@ -671,6 +695,68 @@
                 instructionsModal.style.display = 'none';
                 if (typeof callback === 'function') callback();
             }, 300);
+        }
+
+        function setInstructionsModalMode(mode = 'initial') {
+            const isHelpMode = mode === 'help';
+            instructionsModalMode = isHelpMode ? 'help' : 'initial';
+
+            const instructionsTitle = document.getElementById('instructions-title');
+            const instructionsDescription = document.getElementById('instructions-description');
+            const startFreshBtn = document.getElementById('start-fresh-btn');
+            const continueBtn = document.getElementById('start-continue-btn');
+            const helpResumeBtn = document.getElementById('help-resume-btn');
+            const progressHint = document.getElementById('initial-progress-hint');
+
+            if (!instructionsTitle || !instructionsDescription || !startFreshBtn || !continueBtn || !helpResumeBtn || !progressHint) return;
+
+            if (isHelpMode) {
+                instructionsTitle.innerText = "Instruções rápidas";
+                instructionsDescription.innerText = "Consulta os atalhos e regras. Ao fechar, voltas exatamente à pergunta atual.";
+                startFreshBtn.style.display = 'none';
+                continueBtn.style.display = 'none';
+                helpResumeBtn.style.display = 'block';
+                progressHint.style.display = 'none';
+                return;
+            }
+
+            instructionsTitle.innerText = "Bem-vindo(a) ao Deck de Estudo!";
+            instructionsDescription.innerText = "Navega pelas 50 perguntas e cria o teu próprio baralho de revisão focado nas que consideras mais difíceis.";
+            startFreshBtn.style.display = 'inline-block';
+            continueBtn.style.display = 'inline-block';
+            helpResumeBtn.style.display = 'none';
+            progressHint.style.display = 'block';
+        }
+
+        function showInstructionsModal(mode = 'initial') {
+            const instructionsModal = document.getElementById('instructions-modal');
+            if (!instructionsModal) return;
+
+            if (mode === 'initial') {
+                syncInitialMenuState();
+            }
+
+            setInstructionsModalMode(mode);
+            instructionsModal.style.display = 'flex';
+            requestAnimationFrame(() => {
+                instructionsModal.style.opacity = '1';
+            });
+
+            if (mode === 'help') {
+                document.getElementById('help-resume-btn').focus();
+            } else {
+                document.getElementById('start-fresh-btn').focus();
+            }
+        }
+
+        function openHelpInstructions() {
+            if (!deckStarted) return;
+            if (document.getElementById('exit-screen').style.display === 'flex') return;
+            showInstructionsModal('help');
+        }
+
+        function resumeAfterHelp() {
+            closeInstructionsModal();
         }
 
         function openResumeModal(savedProgress) {
@@ -993,6 +1079,7 @@
         document.addEventListener('keydown', function(event) {
             const isInputField = event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA';
             const isResumeModalOpen = document.getElementById('resume-choice-modal').style.display === 'flex';
+            const isInstructionsModalOpen = document.getElementById('instructions-modal').style.display !== 'none';
 
             if (isResumeModalOpen) {
                 if (event.key === 'Enter' && !isInputField) {
@@ -1001,6 +1088,14 @@
                 } else if (event.key === 'Escape' && !isInputField) {
                     event.preventDefault();
                     restartFromBeginning();
+                }
+                return;
+            }
+
+            if (isInstructionsModalOpen) {
+                if (!isInputField && instructionsModalMode === 'help' && (event.key === 'Enter' || event.key === 'Escape')) {
+                    event.preventDefault();
+                    resumeAfterHelp();
                 }
                 return;
             }
@@ -1023,9 +1118,13 @@
                 toggleFullscreen();
             } else if (event.key.toLowerCase() === 'r') {
                 toggleReviewMode();
+            } else if (event.key === '?') {
+                event.preventDefault();
+                openHelpInstructions();
             }
         });
 
+        setInstructionsModalMode('initial');
         syncInitialMenuState();
         updateFullscreenUI();
 
