@@ -34,12 +34,13 @@ Este projeto foi pensado para estudo rapido e focado:
 
 | Tecla | Acao |
 |---|---|
-| `Seta Direita` | Proxima pergunta |
-| `Seta Esquerda` | Pergunta anterior |
+| `->` (Seta Direita) | Proxima pergunta |
+| `<-` (Seta Esquerda) | Pergunta anterior |
 | `+` | Adicionar pergunta ao deck de revisao |
 | `-` | Remover pergunta do deck de revisao |
 | `R` | Alternar entre deck principal e modo de revisao |
 | `F` | Entrar/sair de ecra inteiro |
+| `?` | Abrir instrucoes/ajuda |
 
 ## Regras de progresso
 
@@ -91,6 +92,10 @@ Recomendado usar versoes recentes de Chrome, Edge ou Firefox com suporte a:
 
 **O ecra inteiro nao abre automaticamente**
 - Alguns navegadores bloqueiam fullscreen sem gesto adicional; use o botao no topo ou a tecla `F`.
+
+**A tecla `?` nao abre a ajuda**
+- Em alguns teclados, `?` exige `Shift`; use a combinacao equivalente do teu layout.
+- Alternativa: clique no botao `?` no topo.
 
 **Perdi o progresso**
 - Verifique se nao esta em modo privado/incognito e se os dados do site nao foram limpos.
